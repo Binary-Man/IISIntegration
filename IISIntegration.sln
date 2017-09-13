@@ -1,7 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.10
-
+VisualStudioVersion = 15.0.26815.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{04B1EDB6-E967-4D25-89B9-E6F8304038CD}"
 	ProjectSection(SolutionItems) = preProject
@@ -43,8 +42,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.Server.IIS", "src\Microsoft.AspNetCore.Server.IIS\Microsoft.AspNetCore.Server.IIS.csproj", "{5C475A6A-8FF6-401F-A35E-01461312C8F6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NativeIISSample", "samples\NativeIISSample\NativeIISSample.csproj", "{9BC4AFCB-325D-4C81-8228-8CF301CE2F97}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NativeProxy", "NativeProxy\NativeProxy.csproj", "{49470C0C-89A9-4E91-9FC6-33FBA06CB370}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -140,18 +137,6 @@ Global
 		{9BC4AFCB-325D-4C81-8228-8CF301CE2F97}.Release|x64.Build.0 = Release|Any CPU
 		{9BC4AFCB-325D-4C81-8228-8CF301CE2F97}.Release|x86.ActiveCfg = Release|Any CPU
 		{9BC4AFCB-325D-4C81-8228-8CF301CE2F97}.Release|x86.Build.0 = Release|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Debug|x64.Build.0 = Debug|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Debug|x86.Build.0 = Debug|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Release|Any CPU.Build.0 = Release|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Release|x64.ActiveCfg = Release|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Release|x64.Build.0 = Release|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Release|x86.ActiveCfg = Release|Any CPU
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -164,10 +149,6 @@ Global
 		{4E3E1F5C-CD52-4CC0-A35F-D1FA1685D2FA} = {EF30B533-D715-421A-92B7-92FEF460AC9C}
 		{5C475A6A-8FF6-401F-A35E-01461312C8F6} = {04B1EDB6-E967-4D25-89B9-E6F8304038CD}
 		{9BC4AFCB-325D-4C81-8228-8CF301CE2F97} = {C74B8F36-FD2F-45C9-9B8A-00E7CF0126A9}
-		{49470C0C-89A9-4E91-9FC6-33FBA06CB370} = {C74B8F36-FD2F-45C9-9B8A-00E7CF0126A9}
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {5A353111-15ED-44BA-9182-237FCB5537F2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DB4F868D-E1AE-4FD7-9333-69FA15B268C5}
