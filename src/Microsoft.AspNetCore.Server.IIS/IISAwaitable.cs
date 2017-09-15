@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
+    // Primarily copied from https://github.com/aspnet/KestrelHttpServer/blob/dev/src/Kestrel.Transport.Libuv/Internal/LibuvAwaitable.cs
     public class IISAwaitable : ICriticalNotifyCompletion
     {
         private readonly static Action _callbackCompleted = () => { };
