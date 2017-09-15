@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines;
 using System.Threading;
+using System.IO.Pipelines;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {

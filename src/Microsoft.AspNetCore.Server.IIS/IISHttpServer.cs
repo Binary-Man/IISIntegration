@@ -1,11 +1,11 @@
 using System;
+using System.IO.Pipelines;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.AspNetCore.Server.IIS

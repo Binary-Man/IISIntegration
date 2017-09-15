@@ -1,16 +1,16 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Pipelines;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.System.Buffers;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
 
@@ -433,7 +433,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 {
                     // These buffers are pinned
                     var wb = Input.Writer.Alloc(MinAllocBufferSize);
-                    _inputHandle = wb.Buffer.Pin();
+                    _inputHandle = wb.Buffer.Retain(true);
 
                     try
                     {
@@ -449,7 +449,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                     finally
                     {
                         wb.Commit();
-                        _inputHandle.Free();
+                        _inputHandle.Dispose();
                     }
 
                     var result = await wb.FlushAsync();
@@ -573,7 +573,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                     ref var handle = ref handles[currentChunk];
                     ref var chunk = ref pDataChunks[currentChunk];
 
-                    handle = b.Pin();
+                    handle = b.Retain(true);
 
                     chunk.DataChunkType = HttpApi.HTTP_DATA_CHUNK_TYPE.HttpDataChunkFromMemory;
                     chunk.fromMemory.BufferLength = (uint)b.Length;
@@ -587,7 +587,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 // Free the handles
                 foreach (var handle in handles)
                 {
-                    handle.Free();
+                    handle.Dispose();
                 }
             }
 

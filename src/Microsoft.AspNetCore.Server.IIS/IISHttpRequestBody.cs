@@ -52,7 +52,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                         var actual = Math.Min(readableBuffer.Length, count);
                         readableBuffer = readableBuffer.Slice(0, actual);
                         readableBuffer.CopyTo(buffer);
-                        return actual;
+                        return (int)actual;
                     }
                     else if (result.IsCompleted)
                     {

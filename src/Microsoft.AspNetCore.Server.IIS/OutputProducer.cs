@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
@@ -82,7 +80,10 @@ namespace Microsoft.AspNetCore.Server.IIS
                 }
 
                 writableBuffer = _pipe.Writer.Alloc(1);
+                // TODO obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                 var writer = new WritableBufferWriter(writableBuffer);
+#pragma warning restore CS0618 // Type or member is obsolete
                 if (buffer.Count > 0)
                 {
                     writer.Write(buffer.Array, buffer.Offset, buffer.Count);
