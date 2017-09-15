@@ -10,9 +10,9 @@ namespace Microsoft.AspNetCore.Server.IIS
 {
     public class IISHttpRequestBody : Stream
     {
-        private readonly IISHttpContext _httpContext;
+        private readonly HttpProtocol _httpContext;
 
-        public IISHttpRequestBody(IISHttpContext httpContext)
+        public IISHttpRequestBody(HttpProtocol httpContext)
         {
             _httpContext = httpContext;
         }

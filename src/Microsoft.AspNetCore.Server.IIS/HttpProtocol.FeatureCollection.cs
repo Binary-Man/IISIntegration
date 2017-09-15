@@ -12,7 +12,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
-    public partial class IISHttpContext : IFeatureCollection,
+    public partial class HttpProtocol : IFeatureCollection,
                                           IHttpRequestFeature,
                                           IHttpResponseFeature,
                                           IHttpUpgradeFeature,

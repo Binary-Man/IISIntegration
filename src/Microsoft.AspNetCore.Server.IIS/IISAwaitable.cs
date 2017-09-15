@@ -20,7 +20,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         public static readonly NativeMethods.PFN_ASYNC_COMPLETION ReadCallback = (IntPtr pHttpContext, IntPtr pCompletionInfo, IntPtr pvCompletionContext) =>
         {
-            var context = (IISHttpContext)GCHandle.FromIntPtr(pvCompletionContext).Target;
+            var context = (HttpProtocol)GCHandle.FromIntPtr(pvCompletionContext).Target;
 
             NativeMethods.http_get_completion_info(pCompletionInfo, out int cbBytes, out int hr);
 
@@ -31,7 +31,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         public static readonly NativeMethods.PFN_ASYNC_COMPLETION WriteCallback = (IntPtr pHttpContext, IntPtr pCompletionInfo, IntPtr pvCompletionContext) =>
         {
-            var context = (IISHttpContext)GCHandle.FromIntPtr(pvCompletionContext).Target;
+            var context = (HttpProtocol)GCHandle.FromIntPtr(pvCompletionContext).Target;
 
             NativeMethods.http_get_completion_info(pCompletionInfo, out int cbBytes, out int hr);
 
@@ -42,7 +42,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         public static readonly NativeMethods.PFN_ASYNC_COMPLETION FlushCallback = (IntPtr pHttpContext, IntPtr pCompletionInfo, IntPtr pvCompletionContext) =>
         {
-            var context = (IISHttpContext)GCHandle.FromIntPtr(pvCompletionContext).Target;
+            var context = (HttpProtocol)GCHandle.FromIntPtr(pvCompletionContext).Target;
 
             NativeMethods.http_get_completion_info(pCompletionInfo, out int cbBytes, out int hr);
 

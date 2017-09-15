@@ -75,7 +75,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 return NativeMethods.REQUEST_NOTIFICATION_STATUS.RQ_NOTIFICATION_CONTINUE;
             }
 
-            task.ContinueWith((t, state) => CompleteRequest((IISHttpContext)state), context);
+            task.ContinueWith((t, state) => CompleteRequest((HttpProtocol)state), context);
 
             return NativeMethods.REQUEST_NOTIFICATION_STATUS.RQ_NOTIFICATION_PENDING;
         }
@@ -88,7 +88,7 @@ namespace Microsoft.AspNetCore.Server.IIS
             return true;
         }
 
-        private static void CompleteRequest(IISHttpContext context)
+        private static void CompleteRequest(HttpProtocol context)
         {
             // Post completion after completing the request to resume the state machine
             context.PostCompletion();
@@ -108,7 +108,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 _pipeFactory = pipeFactory;
             }
 
-            public IISHttpContext CreateHttpContext(IntPtr pHttpContext)
+            public HttpProtocol CreateHttpContext(IntPtr pHttpContext)
             {
                 return new IISHttpContextOfT<T>(_pipeFactory, _application, pHttpContext);
             }
@@ -118,7 +118,7 @@ namespace Microsoft.AspNetCore.Server.IIS
     // Over engineering to avoid allocations...
     public interface IISContextFactory
     {
-        IISHttpContext CreateHttpContext(IntPtr pHttpContext);
+        HttpProtocol CreateHttpContext(IntPtr pHttpContext);
     }
 
     public static class WebHostBuilderExtensions

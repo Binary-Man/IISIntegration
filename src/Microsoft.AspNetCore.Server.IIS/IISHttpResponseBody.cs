@@ -7,9 +7,9 @@ namespace Microsoft.AspNetCore.Server.IIS
 {
     public class IISHttpResponseBody : Stream
     {
-        private readonly IISHttpContext _httpContext;
+        private readonly HttpProtocol _httpContext;
 
-        public IISHttpResponseBody(IISHttpContext httpContext)
+        public IISHttpResponseBody(HttpProtocol httpContext)
         {
             _httpContext = httpContext;
         }

@@ -6,7 +6,7 @@ using System.IO.Pipelines;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
-    public class IISHttpContextOfT<TContext> : IISHttpContext
+    public class IISHttpContextOfT<TContext> : HttpProtocol
     {
         private readonly IHttpApplication<TContext> _application;
 
