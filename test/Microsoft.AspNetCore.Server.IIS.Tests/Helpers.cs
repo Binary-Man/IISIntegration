@@ -16,7 +16,7 @@ namespace Microsoft.AspNetCore.Server.IIS.Tests
                 "..", // debug
                 "..", // obj
                 "..", // projectfolder
-                "TestSites"));
+                "IISTestSites"));
         }
     }
 }
