@@ -19,13 +19,13 @@ namespace Microsoft.AspNetCore.Server.IIS.Tests
         }
 
         [Fact]
-        public Task HelloWorld_IISExpress_Clr_X64_Portable()
+        public Task HelloWorld_InProcess_IISExpress_Clr_X64_Portable()
         {
             return HelloWorld(RuntimeFlavor.Clr, ApplicationType.Portable);
         }
 
         [Fact]
-        public Task HelloWorld_IISExpress_CoreClr_X64_Portable()
+        public Task HelloWorld_InProcess_IISExpress_CoreClr_X64_Portable()
         {
             return HelloWorld(RuntimeFlavor.CoreClr, ApplicationType.Portable);
         }

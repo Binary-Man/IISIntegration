@@ -28,28 +28,6 @@ namespace IISTestSite
                     await ctx.Response.WriteAsync(ctx.Request.QueryString.Value);
                     return;
                 }
-                //if (ctx.Request.Path.Value.StartsWith("/BodyLimit"))
-                //{
-                //    await ctx.Response.WriteAsync(
-                //        ctx.Features.Get<IHttpMaxRequestBodySizeFeature>()?.MaxRequestBodySize?.ToString() ?? "null");
-                //    return;
-                //}
-
-                //if (ctx.Request.Path.StartsWithSegments("/Auth"))
-                //{
-                //    var iisAuth = Environment.GetEnvironmentVariable("ASPNETCORE_IIS_HTTPAUTH");
-                //    var authProvider = ctx.RequestServices.GetService<IAuthenticationSchemeProvider>();
-                //    var authScheme = (await authProvider.GetAllSchemesAsync()).SingleOrDefault();
-                //    if (string.IsNullOrEmpty(iisAuth))
-                //    {
-                //        await ctx.Response.WriteAsync("backcompat;" + (authScheme?.Name ?? "null"));
-                //    }
-                //    else
-                //    {
-                //        await ctx.Response.WriteAsync("latest;" + (authScheme?.Name ?? "null"));
-                //    }
-                //    return;
-                //}
 
                 await ctx.Response.WriteAsync("Hello World");
             });
