@@ -43,7 +43,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.Server
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NativeIISSample", "samples\NativeIISSample\NativeIISSample.csproj", "{9BC4AFCB-325D-4C81-8228-8CF301CE2F97}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.Server.IIS.Tests", "test\Microsoft.AspNetCore.Server.IIS.Tests\Microsoft.AspNetCore.Server.IIS.Tests.csproj", "{FA6447FE-51FC-45D7-860B-4B135AF4020A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IISIntegration.IISServerFunctionalTests", "test\Microsoft.AspNetCore.Server.IIS.Tests\IISIntegration.IISServerFunctionalTests.csproj", "{FA6447FE-51FC-45D7-860B-4B135AF4020A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IISTestSite", "test\IISTestSite\IISTestSite.csproj", "{679FA2A2-898B-4320-884E-C2D294A97CE1}"
 EndProject
