@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 
-namespace Microsoft.AspNetCore.Server.IIS.Tests
+namespace Microsoft.AspNetCore.Server.IIS.FunctionalTests
 {
     public class Helpers
     {

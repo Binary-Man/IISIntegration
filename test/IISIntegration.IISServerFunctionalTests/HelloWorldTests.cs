@@ -10,7 +10,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-namespace Microsoft.AspNetCore.Server.IIS.Tests
+namespace Microsoft.AspNetCore.Server.IIS.FunctionalTests
 {
     public class HelloWorldTests : LoggedTest
     {
