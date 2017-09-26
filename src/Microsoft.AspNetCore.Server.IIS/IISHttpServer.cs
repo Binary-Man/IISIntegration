@@ -116,7 +116,7 @@ namespace Microsoft.AspNetCore.Server.IIS
     }
 
     // Over engineering to avoid allocations...
-    public interface IISContextFactory
+    internal interface IISContextFactory
     {
         HttpProtocol CreateHttpContext(IntPtr pHttpContext);
     }
@@ -127,6 +127,7 @@ namespace Microsoft.AspNetCore.Server.IIS
         {
             if (NativeMethods.is_ancm_loaded())
             {
+                // TODO put this in options and use path.
                 var path = NativeMethods.http_get_application_full_path();
                 builder.UseContentRoot(path);
                 return builder.ConfigureServices(services =>

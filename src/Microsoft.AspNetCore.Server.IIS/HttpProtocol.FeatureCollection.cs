@@ -12,7 +12,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
-    public partial class HttpProtocol : IFeatureCollection,
+    internal partial class HttpProtocol : IFeatureCollection,
                                           IHttpRequestFeature,
                                           IHttpResponseFeature,
                                           IHttpUpgradeFeature,
@@ -188,8 +188,8 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         string IHttpConnectionFeature.ConnectionId
         {
-            get => ConnectionId;
-            set => ConnectionId = value;
+            get => RequestConnectionId;
+            set => RequestConnectionId = value;
         }
 
         string IHttpRequestIdentifierFeature.TraceIdentifier

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.AspNetCore.HttpSys.Internal;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
@@ -19,6 +20,7 @@ namespace Microsoft.AspNetCore.Server.IIS
         public delegate bool PFN_SHUTDOWN_HANDLER(IntPtr pvRequestContext);
         public delegate REQUEST_NOTIFICATION_STATUS PFN_ASYNC_COMPLETION(IntPtr pHttpContext, IntPtr completionInfo, IntPtr pvCompletionContext);
 
+        // TODO make this all internal
         [DllImport(AspNetCoreModuleDll)]
         public static extern int http_post_completion(IntPtr pHttpContext, int cbBytes);
 
@@ -29,16 +31,16 @@ namespace Microsoft.AspNetCore.Server.IIS
         public static extern void register_callbacks(PFN_REQUEST_HANDLER request_callback, PFN_SHUTDOWN_HANDLER shutdown_callback, IntPtr pvRequestContext, IntPtr pvShutdownContext);
 
         [DllImport(AspNetCoreModuleDll)]
-        public unsafe static extern int http_write_response_bytes(IntPtr pHttpContext, HttpApi.HTTP_DATA_CHUNK* pDataChunks, int nChunks, PFN_ASYNC_COMPLETION pfnCompletionCallback, IntPtr pvCompletionContext, out bool fCompletionExpected);
+        internal unsafe static extern int http_write_response_bytes(IntPtr pHttpContext, HttpApiTypes.HTTP_DATA_CHUNK* pDataChunks, int nChunks, PFN_ASYNC_COMPLETION pfnCompletionCallback, IntPtr pvCompletionContext, out bool fCompletionExpected);
 
         [DllImport(AspNetCoreModuleDll)]
         public unsafe static extern int http_flush_response_bytes(IntPtr pHttpContext, PFN_ASYNC_COMPLETION pfnCompletionCallback, IntPtr pvCompletionContext, out bool fCompletionExpected);
 
         [DllImport(AspNetCoreModuleDll)]
-        public unsafe static extern HttpApi.HTTP_REQUEST_V2* http_get_raw_request(IntPtr pHttpContext);
+        internal unsafe static extern HttpApiTypes.HTTP_REQUEST_V2* http_get_raw_request(IntPtr pHttpContext);
 
         [DllImport(AspNetCoreModuleDll)]
-        public unsafe static extern HttpApi.HTTP_RESPONSE_V2* http_get_raw_response(IntPtr pHttpContext);
+        internal unsafe static extern HttpApiTypes.HTTP_RESPONSE_V2* http_get_raw_response(IntPtr pHttpContext);
 
         [DllImport(AspNetCoreModuleDll)]
         public unsafe static extern void http_set_response_status_code(IntPtr pHttpContext, ushort statusCode, byte* pszReason);

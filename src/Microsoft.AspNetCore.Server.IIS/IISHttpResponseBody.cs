@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
-    public class IISHttpResponseBody : Stream
+    internal class IISHttpResponseBody : Stream
     {
         private readonly HttpProtocol _httpContext;
 

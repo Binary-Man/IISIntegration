@@ -24,7 +24,7 @@ namespace IISIntegration.IISServerFunctionalTests
         [Fact]
         public Task HelloWorld_InProcess_IISExpress_Clr_X64_Portable_Request()
         {
-            return HelloWorld(RuntimeFlavor.Clr, ApplicationType.Portable);
+            return HelloWorld(RuntimeFlavor.CoreClr, ApplicationType.Portable);
         }
 
         private async Task HelloWorld(RuntimeFlavor runtimeFlavor, ApplicationType applicationType)
@@ -60,14 +60,6 @@ namespace IISIntegration.IISServerFunctionalTests
                     try
                     {
                         Assert.Equal("Hello World", responseText);
-
-                        response = await deploymentResult.HttpClient.GetAsync("/Path%3F%3F?query");
-                        responseText = await response.Content.ReadAsStringAsync();
-                        Assert.Equal("/Path??", responseText);
-
-                        response = await deploymentResult.HttpClient.GetAsync("/Query%3FPath?query?");
-                        responseText = await response.Content.ReadAsStringAsync();
-                        Assert.Equal("?query?", responseText);
                     }
                     catch (XunitException)
                     {

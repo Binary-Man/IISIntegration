@@ -11,12 +11,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpSys.Internal;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
-    public abstract partial class HttpProtocol : IDisposable
+    internal abstract partial class HttpProtocol : NativeRequestContext, IDisposable
     {
         private const int MinAllocBufferSize = 2048;
 
@@ -47,14 +48,8 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         protected int _requestAborted;
 
-        private readonly IIISHttpContext _context;
-
-        public HttpProtocol(IIISHttpContext context)
-        {
-            _context = context;
-        }
-
-        public HttpProtocol(PipeFactory pipeFactory, IntPtr pHttpContext)
+        internal unsafe HttpProtocol(PipeFactory pipeFactory, IntPtr pHttpContext)
+            : base((HttpApiTypes.HTTP_REQUEST*) NativeMethods.http_get_raw_request(pHttpContext))
         {
             _thisHandle = GCHandle.Alloc(this);
 
@@ -63,37 +58,51 @@ namespace Microsoft.AspNetCore.Server.IIS
 
             unsafe
             {
-                var pHttpRequest = NativeMethods.http_get_raw_request(pHttpContext);
+                Method = GetVerb();
 
-                var verb = pHttpRequest->Request.Verb;
-                if (verb > HttpApi.HTTP_VERB.HttpVerbUnknown && verb < HttpApi.HTTP_VERB.HttpVerbMaximum)
+                var version = GetVersion();
+
+                RawTarget = GetRawUrl();
+
+                HttpVersion = version.ToString();
+                Scheme = SslStatus.ToString();
+                KnownMethod = VerbId;
+
+                var originalPath = RequestUriBuilder.DecodeAndUnescapePath(GetRawUrlInBytes());
+                // TODO: Read this from IIS config
+                var prefix = "/";
+                if (KnownMethod == HttpApiTypes.HTTP_VERB.HttpVerbOPTIONS && string.Equals(RawTarget, "*", StringComparison.Ordinal))
                 {
-                    Method = HttpApi.HttpVerbs[(int)verb];
+                    PathBase = string.Empty;
+                    Path = string.Empty;
+                }
+                // These paths are both unescaped already.
+                else if (originalPath.Length == prefix.Length - 1)
+                {
+                    // They matched exactly except for the trailing slash.
+                    PathBase = originalPath;
+                    Path = string.Empty;
                 }
                 else
                 {
-                    // TODO: Handle unknown verbs
+                    // url: /base/path, prefix: /base/, base: /base, path: /path
+                    // url: /, prefix: /, base: , path: /
+                    PathBase = originalPath.Substring(0, prefix.Length - 1);
+                    Path = originalPath.Substring(prefix.Length - 1);
                 }
 
-                var major = pHttpRequest->Request.Version.MajorVersion;
-                var minor = pHttpRequest->Request.Version.MinorVersion;
+                var cookedUrl = GetCookedUrl();
+                QueryString = cookedUrl.GetQueryString() ?? string.Empty;
 
-                HttpVersion = "HTTP/" + major + "." + minor;
-                Scheme = pHttpRequest->Request.pSslInfo == null ? "http" : "https";
-
-                // TODO: Read this from IIS config
-                PathBase = string.Empty;
-                Path = Encoding.ASCII.GetString(pHttpRequest->Request.pRawUrl, pHttpRequest->Request.RawUrlLength);
-                RawTarget = Path;
-                QueryString = new string(pHttpRequest->Request.CookedUrl.pQueryString, 0, pHttpRequest->Request.CookedUrl.QueryStringLength / 2);
                 // TODO: Avoid using long.ToString, it's pretty slow
-                ConnectionId = pHttpRequest->Request.ConnectionId.ToString(CultureInfo.InvariantCulture);
+                RequestConnectionId = ConnectionId.ToString(CultureInfo.InvariantCulture);
 
                 // Copied from WebListener
                 // This is the base GUID used by HTTP.SYS for generating the activity ID.
                 // HTTP.SYS overwrites the first 8 bytes of the base GUID with RequestId to generate ETW activity ID.
+                // The requestId should be set by the NativeRequestContext
                 var guid = new Guid(0xffcb4c93, 0xa57f, 0x453c, 0xb6, 0x3f, 0x84, 0x71, 0xc, 0x79, 0x67, 0xbb);
-                *((ulong*)&guid) = pHttpRequest->Request.RequestId;
+                *((ulong*)&guid) = RequestId;
 
                 // TODO: Also make this not slow
                 TraceIdentifier = guid.ToString();
@@ -102,7 +111,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 // var localAddress = GetSocketAddress(pHttpRequest->Request.Address.pLocalAddress);
                 // var remoteAddress = GetSocketAddress(pHttpRequest->Request.Address.pRemoteAddress);
 
-                RequestHeaders = new RequestHeaders(pHttpRequest);
+                RequestHeaders = new RequestHeaders(this);
             }
 
             RequestBody = new IISHttpRequestBody(this);
@@ -133,7 +142,7 @@ namespace Microsoft.AspNetCore.Server.IIS
         public int RemotePort { get; set; }
         public IPAddress LocalIpAddress { get; set; }
         public int LocalPort { get; set; }
-        public string ConnectionId { get; set; }
+        public string RequestConnectionId { get; set; }
         public string TraceIdentifier { get; set; }
 
         public Stream RequestBody { get; set; }
@@ -144,6 +153,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         public IHeaderDictionary RequestHeaders { get; set; }
         public IHeaderDictionary ResponseHeaders { get; set; } = new HeaderDictionary();
+        internal HttpApiTypes.HTTP_VERB KnownMethod { get; }
 
         private IISAwaitable DoFlushAsync()
         {
@@ -249,7 +259,6 @@ namespace Microsoft.AspNetCore.Server.IIS
             StartWritingResponseBody();
         }
 
-
         protected Task ProduceEnd()
         {
             if (_applicationException != null)
@@ -302,14 +311,14 @@ namespace Microsoft.AspNetCore.Server.IIS
                 NativeMethods.http_set_response_status_code(_pHttpContext, (ushort)StatusCode, pReasonPhrase);
             }
 
-            HttpApi.HTTP_RESPONSE_V2* pHttpResponse = NativeMethods.http_get_raw_response(_pHttpContext);
+            HttpApiTypes.HTTP_RESPONSE_V2* pHttpResponse = NativeMethods.http_get_raw_response(_pHttpContext);
 
             _pinnedHeaders = SetHttpResponseHeaders(pHttpResponse);
         }
 
-        public unsafe List<GCHandle> SetHttpResponseHeaders(HttpApi.HTTP_RESPONSE_V2* pHttpResponse)
+        internal unsafe List<GCHandle> SetHttpResponseHeaders(HttpApiTypes.HTTP_RESPONSE_V2* pHttpResponse)
         {
-            HttpApi.HTTP_UNKNOWN_HEADER[] unknownHeaders = null;
+            HttpApiTypes.HTTP_UNKNOWN_HEADER[] unknownHeaders = null;
             //HttpApi.HTTP_RESPONSE_INFO[] knownHeaderInfo = null;
             var pinnedHeaders = new List<GCHandle>();
             GCHandle gcHandle;
@@ -331,7 +340,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 {
                     continue;
                 }
-                lookup = HttpApi.HTTP_RESPONSE_HEADER_ID.IndexOfKnownHeader(headerPair.Key);
+                lookup = HttpApiTypes.HTTP_RESPONSE_HEADER_ID.IndexOfKnownHeader(headerPair.Key);
                 if (lookup == -1) // TODO handle opaque stream upgrade?
                 {
                     numUnknownHeaders++;
@@ -353,15 +362,15 @@ namespace Microsoft.AspNetCore.Server.IIS
                     }
                     headerName = headerPair.Key;
                     StringValues headerValues = headerPair.Value;
-                    lookup = HttpApi.HTTP_RESPONSE_HEADER_ID.IndexOfKnownHeader(headerName);
+                    lookup = HttpApiTypes.HTTP_RESPONSE_HEADER_ID.IndexOfKnownHeader(headerName);
                     if (lookup == -1)
                     {
                         if (unknownHeaders == null)
                         {
-                            unknownHeaders = new HttpApi.HTTP_UNKNOWN_HEADER[numUnknownHeaders];
+                            unknownHeaders = new HttpApiTypes.HTTP_UNKNOWN_HEADER[numUnknownHeaders];
                             gcHandle = GCHandle.Alloc(unknownHeaders, GCHandleType.Pinned);
                             pinnedHeaders.Add(gcHandle);
-                            pHttpResponse->Response_V1.Headers.pUnknownHeaders = (HttpApi.HTTP_UNKNOWN_HEADER*)gcHandle.AddrOfPinnedObject();
+                            pHttpResponse->Response_V1.Headers.pUnknownHeaders = (HttpApiTypes.HTTP_UNKNOWN_HEADER*)gcHandle.AddrOfPinnedObject();
                             pHttpResponse->Response_V1.Headers.UnknownHeaderCount = 0; // to remove the iis header for server=...
                         }
 
@@ -552,13 +561,13 @@ namespace Microsoft.AspNetCore.Server.IIS
 
             if (buffer.IsSingleSpan)
             {
-                var pDataChunks = stackalloc HttpApi.HTTP_DATA_CHUNK[1];
+                var pDataChunks = stackalloc HttpApiTypes.HTTP_DATA_CHUNK[1];
 
                 fixed (byte* pBuffer = &buffer.First.Span.DangerousGetPinnableReference())
                 {
                     ref var chunk = ref pDataChunks[0];
 
-                    chunk.DataChunkType = HttpApi.HTTP_DATA_CHUNK_TYPE.HttpDataChunkFromMemory;
+                    chunk.DataChunkType = HttpApiTypes.HTTP_DATA_CHUNK_TYPE.HttpDataChunkFromMemory;
                     chunk.fromMemory.pBuffer = (IntPtr)pBuffer;
                     chunk.fromMemory.BufferLength = (uint)buffer.Length;
 
@@ -568,7 +577,7 @@ namespace Microsoft.AspNetCore.Server.IIS
             else
             {
                 // REVIEW: Do we need to guard against this getting too big? It seems unlikely that we'd have more than say 10 chunks in real life
-                var pDataChunks = stackalloc HttpApi.HTTP_DATA_CHUNK[nChunks];
+                var pDataChunks = stackalloc HttpApiTypes.HTTP_DATA_CHUNK[nChunks];
                 var currentChunk = 0;
 
                 // REVIEW: We don't really need this list since the memory is already pinned with the default pool,
@@ -582,7 +591,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
                     handle = b.Retain(true);
 
-                    chunk.DataChunkType = HttpApi.HTTP_DATA_CHUNK_TYPE.HttpDataChunkFromMemory;
+                    chunk.DataChunkType = HttpApiTypes.HTTP_DATA_CHUNK_TYPE.HttpDataChunkFromMemory;
                     chunk.fromMemory.BufferLength = (uint)b.Length;
                     chunk.fromMemory.pBuffer = (IntPtr)handle.PinnedPointer;
 
@@ -773,7 +782,7 @@ namespace Microsoft.AspNetCore.Server.IIS
         }
 
         // This code added to correctly implement the disposable pattern.
-        public void Dispose()
+        public override void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);

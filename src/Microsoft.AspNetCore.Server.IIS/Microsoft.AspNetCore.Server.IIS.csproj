@@ -18,6 +18,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Http.Extensions" />
     <PackageReference Include="Microsoft.AspNetCore.HttpOverrides" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" />
-
+    <PackageReference Include="Microsoft.AspNetCore.HttpSys.Sources" PrivateAssets="All" />
+    <PackageReference Include="System.Security.Principal.Windows" />
   </ItemGroup>
 </Project>

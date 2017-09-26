@@ -47,7 +47,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IISTestSite", "test\IISTest
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IISIntegration.IISServerFunctionalTests", "test\IISIntegration.IISServerFunctionalTests\IISIntegration.IISServerFunctionalTests.csproj", "{C745BBFD-7888-4038-B41B-6D1832D13878}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.AspNetCore.Server.IIS.Tests", "test\Microsoft.AspNetCore.Server.IIS.Tests\Microsoft.AspNetCore.Server.IIS.Tests.csproj", "{927645D2-48AB-45DD-B304-8ED93A1089C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.Server.IIS.Tests", "test\Microsoft.AspNetCore.Server.IIS.Tests\Microsoft.AspNetCore.Server.IIS.Tests.csproj", "{927645D2-48AB-45DD-B304-8ED93A1089C6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

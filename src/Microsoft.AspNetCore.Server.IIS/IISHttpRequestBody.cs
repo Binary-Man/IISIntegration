@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.AspNetCore.Server.IIS
 {
-    public class IISHttpRequestBody : Stream
+    internal class IISHttpRequestBody : Stream
     {
         private readonly HttpProtocol _httpContext;
 
