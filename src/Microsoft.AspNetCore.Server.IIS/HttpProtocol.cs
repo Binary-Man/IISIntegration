@@ -1,3 +1,6 @@
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -24,12 +27,14 @@ namespace Microsoft.AspNetCore.Server.IIS
         protected readonly IntPtr _pHttpContext;
         private bool _upgradeAvailable;
         private bool _wasUpgraded;
+        private int _statusCode;
 
         private readonly object _onStartingSync = new object();
         private readonly object _onCompletedSync = new object();
 
         protected Stack<KeyValuePair<Func<object, Task>, object>> _onStarting;
         protected Stack<KeyValuePair<Func<object, Task>, object>> _onCompleted;
+
         protected Exception _applicationException;
         private readonly PipeFactory _pipeFactory;
 
@@ -40,6 +45,7 @@ namespace Microsoft.AspNetCore.Server.IIS
         private IISAwaitable _readOperation = new IISAwaitable();
         private IISAwaitable _writeOperation = new IISAwaitable();
         private IISAwaitable _flushOperation = new IISAwaitable();
+        private static Version _win8Version = new Version(6, 2);
 
         private TaskCompletionSource<object> _upgradeTcs;
 
@@ -60,15 +66,15 @@ namespace Microsoft.AspNetCore.Server.IIS
             {
                 Method = GetVerb();
 
-                var version = GetVersion();
-
                 RawTarget = GetRawUrl();
-
-                HttpVersion = version.ToString();
-                Scheme = SslStatus.ToString();
+                // TODO version is slow.
+                var version = GetVersion();
+                HttpVersion = "HTTP/" + version.ToString();
+                Scheme = SslStatus != SslStatus.Insecure ? Constants.HttpsScheme : Constants.HttpScheme;
                 KnownMethod = VerbId;
 
                 var originalPath = RequestUriBuilder.DecodeAndUnescapePath(GetRawUrlInBytes());
+
                 // TODO: Read this from IIS config
                 var prefix = "/";
                 if (KnownMethod == HttpApiTypes.HTTP_VERB.HttpVerbOPTIONS && string.Equals(RawTarget, "*", StringComparison.Ordinal))
@@ -107,11 +113,17 @@ namespace Microsoft.AspNetCore.Server.IIS
                 // TODO: Also make this not slow
                 TraceIdentifier = guid.ToString();
 
-                // TODO: Parse socket ADDR for local and remote end point
-                // var localAddress = GetSocketAddress(pHttpRequest->Request.Address.pLocalAddress);
-                // var remoteAddress = GetSocketAddress(pHttpRequest->Request.Address.pRemoteAddress);
+                var localEndPoint = GetLocalEndPoint();
+                LocalIpAddress = localEndPoint.GetIPAddress();
+                LocalPort = localEndPoint.GetPort();
+
+                var remoteEndPoint = GetRemoteEndPoint();
+                RemoteIpAddress = remoteEndPoint.GetIPAddress();
+                LocalPort = remoteEndPoint.GetPort();
+                StatusCode = 200;
 
                 RequestHeaders = new RequestHeaders(this);
+                ResponseHeaders = new HeaderCollection(); // TODO Optimize for known headers
             }
 
             RequestBody = new IISHttpRequestBody(this);
@@ -121,10 +133,19 @@ namespace Microsoft.AspNetCore.Server.IIS
             var pipe = _pipeFactory.Create(new PipeOptions { ReaderScheduler = TaskRunScheduler.Default });
             Output = new OutputProducer(pipe);
 
-            // TODO: Only upgradable on Win8 or higher
-            _upgradeAvailable = true; // TODO
+            // TODO: Also make this not slow
+            _upgradeAvailable = (Environment.OSVersion.Version >= _win8Version);
 
             ResetFeatureCollection();
+        }
+
+        // For knowing whether we are allowed to set certain things for the response
+        private enum ResponseState
+        {
+            Created,
+            ComputedHeaders,
+            Started,
+            Closed,
         }
 
         public string HttpVersion { get; set; }
@@ -134,7 +155,6 @@ namespace Microsoft.AspNetCore.Server.IIS
         public string Path { get; set; }
         public string QueryString { get; set; }
         public string RawTarget { get; set; }
-        public int StatusCode { get; set; } = 200;
         public string ReasonPhrase { get; set; }
         public CancellationToken RequestAborted { get; set; }
         public bool HasResponseStarted { get; set; }
@@ -147,13 +167,26 @@ namespace Microsoft.AspNetCore.Server.IIS
 
         public Stream RequestBody { get; set; }
         public Stream ResponseBody { get; set; }
-
         public IPipe Input { get; set; }
         public OutputProducer Output { get; set; }
 
         public IHeaderDictionary RequestHeaders { get; set; }
-        public IHeaderDictionary ResponseHeaders { get; set; } = new HeaderDictionary();
+        public IHeaderDictionary ResponseHeaders { get; set; }
         internal HttpApiTypes.HTTP_VERB KnownMethod { get; }
+
+        public int StatusCode
+        {
+            get { return _statusCode; }
+            set
+            {
+                // Http.Sys automatically sends 100 Continue responses when you read from the request body.
+                if (HasResponseStarted)
+                {
+                    ThrowResponseAlreadyStartedException(nameof(StatusCode));
+                }
+                _statusCode = (ushort)value;
+            }
+        }
 
         private IISAwaitable DoFlushAsync()
         {
@@ -254,7 +287,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
             HasResponseStarted = true;
 
-            CreateResponseHeader(appCompleted);
+            SendResponseHeaders(appCompleted);
 
             StartWritingResponseBody();
         }
@@ -299,9 +332,9 @@ namespace Microsoft.AspNetCore.Server.IIS
             await Output.FlushAsync();
         }
 
-        public unsafe void CreateResponseHeader(bool appCompleted)
+        public unsafe void SendResponseHeaders(bool appCompleted)
         {
-            // TODO: Don't allocate a string
+            // Verifies we have sent the statuscode before writing a header
             var reasonPhrase = ReasonPhrases.GetReasonPhrase(StatusCode);
             var reasonPhraseBytes = Encoding.UTF8.GetBytes(reasonPhrase);
 
@@ -313,13 +346,15 @@ namespace Microsoft.AspNetCore.Server.IIS
 
             HttpApiTypes.HTTP_RESPONSE_V2* pHttpResponse = NativeMethods.http_get_raw_response(_pHttpContext);
 
-            _pinnedHeaders = SetHttpResponseHeaders(pHttpResponse);
+            // We should be sending the headers here as there are many responses that don't have status codes.
+            _pinnedHeaders = SerializeHeaders(pHttpResponse);
         }
 
-        internal unsafe List<GCHandle> SetHttpResponseHeaders(HttpApiTypes.HTTP_RESPONSE_V2* pHttpResponse)
+        // From HttpSys, except does not write to response
+        private unsafe List<GCHandle> SerializeHeaders(HttpApiTypes.HTTP_RESPONSE_V2* pHttpResponse)
         {
             HttpApiTypes.HTTP_UNKNOWN_HEADER[] unknownHeaders = null;
-            //HttpApi.HTTP_RESPONSE_INFO[] knownHeaderInfo = null;
+            HttpApiTypes.HTTP_RESPONSE_INFO[] knownHeaderInfo = null;
             var pinnedHeaders = new List<GCHandle>();
             GCHandle gcHandle;
 
@@ -331,7 +366,7 @@ namespace Microsoft.AspNetCore.Server.IIS
             string headerValue;
             int lookup;
             var numUnknownHeaders = 0;
-            var numKnownMultiHeader = 0;
+            int numKnownMultiHeaders = 0;
             byte[] bytes = null;
 
             foreach (var headerPair in ResponseHeaders)
@@ -347,7 +382,7 @@ namespace Microsoft.AspNetCore.Server.IIS
                 }
                 else if (headerPair.Value.Count > 1)
                 {
-                    numKnownMultiHeader++;
+                    numKnownMultiHeaders++;
                 }
             }
 
@@ -374,15 +409,17 @@ namespace Microsoft.AspNetCore.Server.IIS
                             pHttpResponse->Response_V1.Headers.UnknownHeaderCount = 0; // to remove the iis header for server=...
                         }
 
-                        for (var index = 0; index < headerValues.Count; index++)
+                        for (var headerValueIndex = 0; headerValueIndex < headerValues.Count; headerValueIndex++)
                         {
+                            // Add Name
                             bytes = HeaderEncoding.GetBytes(headerName);
                             unknownHeaders[pHttpResponse->Response_V1.Headers.UnknownHeaderCount].NameLength = (ushort)bytes.Length;
                             gcHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                             pinnedHeaders.Add(gcHandle);
                             unknownHeaders[pHttpResponse->Response_V1.Headers.UnknownHeaderCount].pName = (byte*)gcHandle.AddrOfPinnedObject();
 
-                            headerValue = headerValues[index] ?? string.Empty;
+                            // Add Value
+                            headerValue = headerValues[headerValueIndex] ?? string.Empty;
                             bytes = HeaderEncoding.GetBytes(headerValue);
                             unknownHeaders[pHttpResponse->Response_V1.Headers.UnknownHeaderCount].RawValueLength = (ushort)bytes.Length;
                             gcHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
@@ -402,7 +439,45 @@ namespace Microsoft.AspNetCore.Server.IIS
                     }
                     else
                     {
-                        // TODO multivalue headers
+                        if (knownHeaderInfo == null)
+                        {
+                            knownHeaderInfo = new HttpApiTypes.HTTP_RESPONSE_INFO[numKnownMultiHeaders];
+                            gcHandle = GCHandle.Alloc(knownHeaderInfo, GCHandleType.Pinned);
+                            pinnedHeaders.Add(gcHandle);
+                            pHttpResponse->pResponseInfo = (HttpApiTypes.HTTP_RESPONSE_INFO*)gcHandle.AddrOfPinnedObject();
+                        }
+
+                        knownHeaderInfo[pHttpResponse->ResponseInfoCount].Type = HttpApiTypes.HTTP_RESPONSE_INFO_TYPE.HttpResponseInfoTypeMultipleKnownHeaders;
+                        knownHeaderInfo[pHttpResponse->ResponseInfoCount].Length = (uint)Marshal.SizeOf<HttpApiTypes.HTTP_MULTIPLE_KNOWN_HEADERS>();
+
+                        var header = new HttpApiTypes.HTTP_MULTIPLE_KNOWN_HEADERS();
+
+                        header.HeaderId = (HttpApiTypes.HTTP_RESPONSE_HEADER_ID.Enum)lookup;
+                        header.Flags = HttpApiTypes.HTTP_RESPONSE_INFO_FLAGS.PreserveOrder; // TODO: The docs say this is for www-auth only.
+
+                        var nativeHeaderValues = new HttpApiTypes.HTTP_KNOWN_HEADER[headerValues.Count];
+                        gcHandle = GCHandle.Alloc(nativeHeaderValues, GCHandleType.Pinned);
+                        pinnedHeaders.Add(gcHandle);
+                        header.KnownHeaders = (HttpApiTypes.HTTP_KNOWN_HEADER*)gcHandle.AddrOfPinnedObject();
+
+                        for (int headerValueIndex = 0; headerValueIndex < headerValues.Count; headerValueIndex++)
+                        {
+                            // Add Value
+                            headerValue = headerValues[headerValueIndex] ?? string.Empty;
+                            bytes = HeaderEncoding.GetBytes(headerValue);
+                            nativeHeaderValues[header.KnownHeaderCount].RawValueLength = (ushort)bytes.Length;
+                            gcHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+                            pinnedHeaders.Add(gcHandle);
+                            nativeHeaderValues[header.KnownHeaderCount].pRawValue = (byte*)gcHandle.AddrOfPinnedObject();
+                            header.KnownHeaderCount++;
+                        }
+
+                        // This type is a struct, not an object, so pinning it causes a boxed copy to be created. We can't do that until after all the fields are set.
+                        gcHandle = GCHandle.Alloc(header, GCHandleType.Pinned);
+                        pinnedHeaders.Add(gcHandle);
+                        knownHeaderInfo[pHttpResponse->ResponseInfoCount].pInfo = (HttpApiTypes.HTTP_MULTIPLE_KNOWN_HEADERS*)gcHandle.AddrOfPinnedObject();
+
+                        pHttpResponse->ResponseInfoCount++;
                     }
                 }
             }
@@ -787,5 +862,11 @@ namespace Microsoft.AspNetCore.Server.IIS
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }
+
+        private void ThrowResponseAlreadyStartedException(string value)
+        {
+            throw new InvalidOperationException("Response already started");
+        }
+
     }
 }

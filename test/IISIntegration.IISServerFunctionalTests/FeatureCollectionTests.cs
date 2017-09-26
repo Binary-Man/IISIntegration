@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Server.IIS.FunctionalTests;
 using Microsoft.AspNetCore.Server.IntegrationTesting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -15,34 +16,37 @@ using Xunit.Sdk;
 
 namespace Microsoft.AspNetCore.Server.IIS.FunctionalTests
 {
-    public class HelloWorldTests : LoggedTest
+    public class FeatureCollectionTest : LoggedTest
     {
-        public HelloWorldTests(ITestOutputHelper output) : base(output)
+        public FeatureCollectionTest(ITestOutputHelper output) : base(output)
         {
         }
 
-        [Fact]
-        public Task HelloWorld_InProcess_IISExpress_CoreClr_X64_Portable()
+        [Theory]
+        [InlineData("SetRequestFeatures")]
+        [InlineData("SetResponseFeatures")]
+        [InlineData("SetConnectionFeatures")]
+        public Task FeatureCollectionTest_SetHttpContextFeatures(string path)
         {
-            return HelloWorld(RuntimeFlavor.CoreClr, ApplicationType.Portable);
+            return SetFeatures(RuntimeFlavor.CoreClr, ApplicationType.Portable, path);
         }
 
-        private async Task HelloWorld(RuntimeFlavor runtimeFlavor, ApplicationType applicationType)
+        private async Task SetFeatures(RuntimeFlavor runtimeFlavor, ApplicationType applicationType, string path)
         {
             var serverType = ServerType.IISExpress;
             var architecture = RuntimeArchitecture.x64;
-            var testName = $"HelloWorld_{runtimeFlavor}";
+            var testName = $"SetFeatures_{runtimeFlavor}";
             using (StartLog(out var loggerFactory, testName))
             {
-                var logger = loggerFactory.CreateLogger("HelloWorldTest");
+                var logger = loggerFactory.CreateLogger("SetFeaturesTest");
 
                 var deploymentParameters = new DeploymentParameters(Helpers.GetTestSitesPath(), serverType, runtimeFlavor, architecture)
                 {
-                    EnvironmentName = "HelloWorld", // Will pick the Start class named 'StartupHelloWorld',
+                    EnvironmentName = "FeatureCollection", // Will pick the Start class named 'StartupFeatureCollection',
                     ServerConfigTemplateContent = (serverType == ServerType.IISExpress) ? File.ReadAllText("Http.config") : null,
                     SiteName = "HttpTestSite", // This is configured in the Http.config
                     TargetFramework = runtimeFlavor == RuntimeFlavor.Clr ? "net461" : "netcoreapp2.0",
-                    ApplicationType = applicationType
+                    ApplicationType = applicationType,
                 };
 
                 using (var deployer = ApplicationDeployerFactory.Create(deploymentParameters, loggerFactory))
@@ -53,21 +57,13 @@ namespace Microsoft.AspNetCore.Server.IIS.FunctionalTests
                     // Request to base address and check if various parts of the body are rendered & measure the cold startup time.
                     var response = await RetryHelper.RetryRequest(() =>
                     {
-                        return deploymentResult.HttpClient.GetAsync(string.Empty);
+                        return deploymentResult.HttpClient.GetAsync(path + "?query");
                     }, logger, deploymentResult.HostShutdownToken, retryCount: 30);
 
                     var responseText = await response.Content.ReadAsStringAsync();
                     try
                     {
-                        Assert.Equal("Hello World", responseText);
-
-                        response = await deploymentResult.HttpClient.GetAsync("/Path%3F%3F?query");
-                        responseText = await response.Content.ReadAsStringAsync();
-                        Assert.Equal("/Path??", responseText);
-
-                        response = await deploymentResult.HttpClient.GetAsync("/Query%3FPath?query?");
-                        responseText = await response.Content.ReadAsStringAsync();
-                        Assert.Equal("?query?", responseText);
+                        Assert.Equal("Success", responseText);
                     }
                     catch (XunitException)
                     {
@@ -78,5 +74,6 @@ namespace Microsoft.AspNetCore.Server.IIS.FunctionalTests
                 }
             }
         }
+
     }
 }

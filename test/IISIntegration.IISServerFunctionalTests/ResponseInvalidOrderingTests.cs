@@ -1,44 +1,45 @@
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Server.IIS.FunctionalTests;
 using Microsoft.AspNetCore.Server.IntegrationTesting;
-using Microsoft.AspNetCore.Testing.xunit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-
-namespace IISIntegration.IISServerFunctionalTests
+namespace Microsoft.AspNetCore.Server.IIS.FunctionalTests
 {
-    public class RequestTests : LoggedTest
+    public class ResponseInvalidOrderingTests : LoggedTest
     {
-        public RequestTests(ITestOutputHelper output) : base(output)
+        public ResponseInvalidOrderingTests(ITestOutputHelper output) : base(output)
         {
         }
 
-        [Fact]
-        public Task HelloWorld_InProcess_IISExpress_Clr_X64_Portable_Request()
+        [Theory]
+        [InlineData("SetStatusCodeAfterWrite")]
+        // TODO this will take a bit of organization between using kestrel and httpsys's implementation
+        //[InlineData("SetHeaderAfterWrite")]
+        public Task ResponseInvalidOrderingTests_ExpectFailure(string path)
         {
-            return HelloWorld(RuntimeFlavor.CoreClr, ApplicationType.Portable);
+            return SetResponseInvalidOperations(RuntimeFlavor.CoreClr, ApplicationType.Portable, path);
         }
 
-        private async Task HelloWorld(RuntimeFlavor runtimeFlavor, ApplicationType applicationType)
+        private async Task SetResponseInvalidOperations(RuntimeFlavor runtimeFlavor, ApplicationType applicationType, string path)
         {
             var serverType = ServerType.IISExpress;
             var architecture = RuntimeArchitecture.x64;
-            var testName = $"HelloWorld_{runtimeFlavor}";
+            var testName = $"SetResponseInvalidOperations_{runtimeFlavor}";
             using (StartLog(out var loggerFactory, testName))
             {
-                var logger = loggerFactory.CreateLogger("HelloWorldTest");
+                var logger = loggerFactory.CreateLogger("SetFeaturesTest");
 
                 var deploymentParameters = new DeploymentParameters(Helpers.GetTestSitesPath(), serverType, runtimeFlavor, architecture)
                 {
-                    EnvironmentName = "RequestTests", // Will pick the Start class named 'StartupHelloWorld',
+                    EnvironmentName = "ResponseInvalidOrdering", // Will pick the Start class named 'StartupInvalidOrdering',
                     ServerConfigTemplateContent = (serverType == ServerType.IISExpress) ? File.ReadAllText("Http.config") : null,
                     SiteName = "HttpTestSite", // This is configured in the Http.config
                     TargetFramework = runtimeFlavor == RuntimeFlavor.Clr ? "net461" : "netcoreapp2.0",
@@ -53,13 +54,13 @@ namespace IISIntegration.IISServerFunctionalTests
                     // Request to base address and check if various parts of the body are rendered & measure the cold startup time.
                     var response = await RetryHelper.RetryRequest(() =>
                     {
-                        return deploymentResult.HttpClient.GetAsync(string.Empty);
+                        return deploymentResult.HttpClient.GetAsync(path);
                     }, logger, deploymentResult.HostShutdownToken, retryCount: 30);
 
                     var responseText = await response.Content.ReadAsStringAsync();
                     try
                     {
-                        Assert.Equal("Hello World", responseText);
+                        Assert.Equal($"Started_{path}Threw_Finished", responseText);
                     }
                     catch (XunitException)
                     {
@@ -70,6 +71,5 @@ namespace IISIntegration.IISServerFunctionalTests
                 }
             }
         }
-
     }
 }

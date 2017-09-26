@@ -13,26 +13,18 @@ using Microsoft.Extensions.Logging;
 
 namespace IISTestSite
 {
-    public class StartupHelloWorld
+    public class StartupHttpsHelloWorld
     {
-        // This method gets called by the runtime. Use this method to add services to the container.
-        // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
             app.Run(async ctx =>
             {
-                if (ctx.Request.Path.Value.StartsWith("/Path"))
+                if (ctx.Request.Path.Value.StartsWith("/ClientCertificate"))
                 {
-                    await ctx.Response.WriteAsync(ctx.Request.Path.Value);
+                    await ctx.Response.WriteAsync($"{ ctx.Request.Scheme }Hello World, Cert: {ctx.Connection.ClientCertificate != null}");
                     return;
                 }
-                if (ctx.Request.Path.Value.StartsWith("/Query"))
-                {
-                    await ctx.Response.WriteAsync(ctx.Request.QueryString.Value);
-                    return;
-                }
-
-                await ctx.Response.WriteAsync("Hello World");
+                await ctx.Response.WriteAsync(ctx.Request.Scheme + "Hello World");
             });
         }
     }
