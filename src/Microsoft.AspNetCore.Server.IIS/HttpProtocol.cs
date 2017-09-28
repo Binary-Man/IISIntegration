@@ -352,6 +352,7 @@ namespace Microsoft.AspNetCore.Server.IIS
         // From HttpSys, except does not write to response
         private unsafe List<GCHandle> SerializeHeaders(HttpApiTypes.HTTP_RESPONSE_V2* pHttpResponse)
         {
+            // TODO make the header collection readonly to stop modifications. 
             HttpApiTypes.HTTP_UNKNOWN_HEADER[] unknownHeaders = null;
             HttpApiTypes.HTTP_RESPONSE_INFO[] knownHeaderInfo = null;
             var pinnedHeaders = new List<GCHandle>();
