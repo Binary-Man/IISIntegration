@@ -25,7 +25,6 @@ namespace Microsoft.AspNetCore.Server.IIS
         private const int MinAllocBufferSize = 2048;
 
         protected readonly IntPtr _pHttpContext;
-        private bool _upgradeAvailable;
         private bool _wasUpgraded;
         private int _statusCode;
 
@@ -45,7 +44,6 @@ namespace Microsoft.AspNetCore.Server.IIS
         private IISAwaitable _readOperation = new IISAwaitable();
         private IISAwaitable _writeOperation = new IISAwaitable();
         private IISAwaitable _flushOperation = new IISAwaitable();
-        private static Version _win8Version = new Version(6, 2);
 
         private TaskCompletionSource<object> _upgradeTcs;
 
@@ -53,6 +51,9 @@ namespace Microsoft.AspNetCore.Server.IIS
         protected Task _writingTask;
 
         protected int _requestAborted;
+
+        private static bool _upgradeAvailable = (Environment.OSVersion.Version >= new Version(6, 2));
+
 
         internal unsafe HttpProtocol(PipeFactory pipeFactory, IntPtr pHttpContext)
             : base((HttpApiTypes.HTTP_REQUEST*) NativeMethods.http_get_raw_request(pHttpContext))
@@ -119,7 +120,7 @@ namespace Microsoft.AspNetCore.Server.IIS
 
                 var remoteEndPoint = GetRemoteEndPoint();
                 RemoteIpAddress = remoteEndPoint.GetIPAddress();
-                LocalPort = remoteEndPoint.GetPort();
+                RemotePort = remoteEndPoint.GetPort();
                 StatusCode = 200;
 
                 RequestHeaders = new RequestHeaders(this);
@@ -134,7 +135,6 @@ namespace Microsoft.AspNetCore.Server.IIS
             Output = new OutputProducer(pipe);
 
             // TODO: Also make this not slow
-            _upgradeAvailable = (Environment.OSVersion.Version >= _win8Version);
 
             ResetFeatureCollection();
         }
@@ -179,7 +179,6 @@ namespace Microsoft.AspNetCore.Server.IIS
             get { return _statusCode; }
             set
             {
-                // Http.Sys automatically sends 100 Continue responses when you read from the request body.
                 if (HasResponseStarted)
                 {
                     ThrowResponseAlreadyStartedException(nameof(StatusCode));
